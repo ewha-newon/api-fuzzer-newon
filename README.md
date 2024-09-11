@@ -1,1 +1,3 @@
 # api-fuzzer-newon
+KissPeter님의 APIFuzzer를 기반으로 만들어본 api fuzzer
+json 파일 작성 자동화 -> 아직 수정중...
