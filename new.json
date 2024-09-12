@@ -1,0 +1,27 @@
+{
+    "swagger": "2.0",
+    "info": {
+      "title": "Test API"
+    },
+    "host": "https://mo-gether.site/",
+    "schemes": [
+      "http"
+    ],
+    "basePath": "https://api.mo-gether.site/",
+    "paths": {
+      "/login": {
+        "post": {
+          "parameters": [
+            {
+              "email": "bodyparam",
+              "password": "bodyparam",
+              "required": true,
+              "type": "string",
+              "format": "double"
+            }
+          ]
+        }
+      }
+      
+    }
+  }

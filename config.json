@@ -1,0 +1,16 @@
+{
+    "api_url": "https://mo-gether.site",
+    "method": "POST",
+    "headers": {
+        "Content-Type": "application/json"
+    },
+    "body": {
+        "nickname": "FUZZ",
+        "password": "FUZZ"
+    },
+    "fuzzing_options": {
+        "payloads": [
+            "sql_injections.txt"
+        ]
+    }
+}
