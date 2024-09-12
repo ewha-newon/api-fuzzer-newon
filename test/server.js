@@ -1,32 +1,39 @@
-const express = require('express');
-const bodyParser = require('body-parser');
-
-const app = express();
 const port = 5000;
 
-// Middleware 설정
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
-// 예제 API 엔드포인트
-app.post('/openapi3_post_requestBody', (req, res) => {
-  const { id, address, profileImage } = req.body;
+const validEmail = 'test@gmail.com';
+const validPassword = '1234';
 
-  if (!id || !address || !profileImage) {
-    return res.status(400).json({ error: 'Missing required fields' });
+app.post('/login', (req, res) => {
+  const { email, password, redirect } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required' });
   }
 
-  res.status(200).json({
-    message: 'Received valid request',
-    data: {
-      id,
-      address,
-      profileImage,
-    },
-  });
+  //sql injection?
+  const sql = `SELECT * FROM users WHERE email = '${email}' AND password = '${password}'`;
+
+  if (email === validEmail && password === validPassword) {
+    //redirection을 통한 침투 테스트
+    if (redirect) {
+      return res.redirect(redirect);
+    }
+
+    return res.redirect('/success');
+  } 
+  else {
+    return res.status(401).json({ error: 'Invalid credentials' });
+  }
 });
 
-// 서버 실행
+
+app.get('/success', (req, res) => {
+  res.send('<h1>Login Successful!</h1>');
+});
+
 app.listen(port, () => {
-  console.log(`API server running at http://localhost:${port}`);
+  console.log(`Server running at http://localhost:${port}`);
 });
