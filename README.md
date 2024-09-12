@@ -30,3 +30,8 @@ optional arguments:
                         Use basic output for logging (useful if running in jenkins). Example --basic_output=True
   --headers HEADERS     Http request headers added to all request. Example: '[{"Authorization": "SuperSecret"}, {"Auth2": "asd"}]' 
 ```
+
+
+test -> node.js로 작성
+wsl에서 node server.js로 실행
+http://localhost:5000 을 타깃 url로 설정하고 실행했으나 현재 리포터 생성 xxxxx
