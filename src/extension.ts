@@ -2,11 +2,10 @@ import * as vscode from 'vscode';
 import * as path from 'path';
 import * as fs from 'fs';
 
-//웹뷰
 function createWebviewPanel(context: vscode.ExtensionContext) {
     const panel = vscode.window.createWebviewPanel(
-        'api fuzzer',
-        'api fuzzer',
+        'apiFuzzer',
+        'API Fuzzer',
         vscode.ViewColumn.One,
         { enableScripts: true }
     );
@@ -16,19 +15,18 @@ function createWebviewPanel(context: vscode.ExtensionContext) {
     panel.webview.onDidReceiveMessage(
         async (message) => {
             if (message.command === 'generateSpecAndFuzz') {
-                //스펙 파일 경로 확인 / 스펙 파일 생성
                 let specPath = message.data.specPath;
                 if (!specPath) {
                     specPath = await generateOpenApiSpec(message.data);
-                }
-
-                if (specPath) {
+                    if (specPath) {
+                        vscode.window.showInformationMessage('OpenAPI 스펙 파일이 저장되었습니다.');
+                    }
+                } else {
                     const runFuzz = await vscode.window.showInformationMessage(
-                        'OpenAPI 스펙 파일이 저장되었습니다. 퍼징 테스트를 실행하시겠습니까?',
+                        '기존 OpenAPI 스펙 파일이 선택되었습니다. 퍼징 테스트를 실행하시겠습니까?',
                         '예', '아니오'
                     );
                     if (runFuzz === '예') {
-                        //패키지 설치 -> 미리 sudo 비번 받기
                         await setupWslEnvironment();
                         runApiFuzzer(specPath, message.data);
                     }
@@ -39,7 +37,6 @@ function createWebviewPanel(context: vscode.ExtensionContext) {
         context.subscriptions
     );
 }
-
 
 async function setupWslEnvironment() {
     const sudoPassword = await vscode.window.showInputBox({
@@ -58,7 +55,6 @@ async function setupWslEnvironment() {
 
     terminal.sendText(`echo '${sudoPassword}' | sudo -S apt update`);
     terminal.sendText(`echo '${sudoPassword}' | sudo -S apt install -y libcurl4-openssl-dev libssl-dev libcurl4-nss-dev gcc python3-pip`);
-
     terminal.sendText(`pip3 install --upgrade APIFuzzer`);
 
     setTimeout(() => {
@@ -66,7 +62,6 @@ async function setupWslEnvironment() {
     }, 5000);
 }
 
-//웹 패널
 function getWebviewContent(): string {
     return `
         <!DOCTYPE html>
@@ -86,15 +81,15 @@ function getWebviewContent(): string {
                 </select><br><br>
 
                 <div id="existingSpecSection" style="display: none;">
-                    <label>기존 JSON 파일 경로</label>
-                    <input type="file" id="specFile" accept=".json"><br><br>
+                    <label>기존 파일 경로</label>
+                    <input type="file" id="specFile" accept=".json, .yaml"><br><br>
                 </div>
 
                 <div id="newSpecSection">
-                    <label>타깃 url</label>
+                    <label>타깃 URL</label>
                     <input type="text" id="targetUrl" value="http://localhost:5000" required><br><br>
 
-                    <label>HTTP method</label>
+                    <label>HTTP 메서드</label>
                     <select id="method">
                         <option value="get">GET</option>
                         <option value="post" selected>POST</option>
@@ -102,10 +97,10 @@ function getWebviewContent(): string {
                         <option value="delete">DELETE</option>
                     </select><br><br>
 
-                    <label>api 경로</label>
+                    <label>API 경로</label>
                     <input type="text" id="apiPath" value="/login" required><br><br>
 
-                    <label>body 파라미터를 입력하시겠습니까?(선택)</label>
+                    <label>Body 파라미터를 입력하시겠습니까? (선택)</label>
                     <select id="includeBodyParams">
                         <option value="yes">예</option>
                         <option value="no" selected>아니오</option>
@@ -125,7 +120,7 @@ function getWebviewContent(): string {
 
                 <label>로그 표시</label>
                 <select id="logLevel">
-                    <option value="critical">Critical</option> 
+                    <option value="critical">Critical</option>
                     <option value="fatal">Fatal</option>
                     <option value="error">Error</option>
                     <option value="warn">Warn</option>
@@ -135,10 +130,10 @@ function getWebviewContent(): string {
                     <option value="notset">NotSet</option>
                 </select><br><br>
 
-                <label>테스트 심층 레벨(프로그레스....라는데)</label>
+                <label>테스트 심층 레벨</label>
                 <input type="number" id="testLevel" value="1" min="1" max="2"><br><br>
 
-                <label>추가 헤더 (JSON 형식으로 작성 ex> {'Authorization': 'Bearer~ '})</label>
+                <label>추가 헤더 (JSON 형식으로 작성 예: {'Authorization': 'Bearer ~'})</label>
                 <input type="text" id="headers" value='[]'><br><br>
 
                 <button type="submit">스펙 파일 생성 및 퍼징 실행</button>
@@ -188,7 +183,6 @@ function getWebviewContent(): string {
     `;
 }
 
-//open api spec json 생성
 async function generateOpenApiSpec(data: { targetUrl: string, method: string, apiPath: string, bodyParams: any[], contentType: string }): Promise<string | null> {
     const openApiSpec: any = {
         openapi: '3.0.0',
@@ -206,7 +200,7 @@ async function generateOpenApiSpec(data: { targetUrl: string, method: string, ap
                             }
                         }
                     } : undefined,
-                    responses: { '200': { description: '성공적인 요청' } },
+                    responses: { '200': { description: 'Success' } },
                 }
             }
         }
@@ -224,28 +218,53 @@ async function generateOpenApiSpec(data: { targetUrl: string, method: string, ap
     if (!fs.existsSync(tmpDir)) {
         fs.mkdirSync(tmpDir, { recursive: true });
     }
-    const specPath = path.join(tmpDir, 'generated_openapi.json');
+    const randomFileName = generateRandomFileName();
+    const specPath = path.join(tmpDir, randomFileName + '.json');
     fs.writeFileSync(specPath, JSON.stringify(openApiSpec, null, 2));
     return specPath;
 }
 
-//api fuzzer 실행
-function runApiFuzzer(specPath: string, data: { targetUrl: string, options: { logLevel: string, testLevel: string, headers: any[] } }) {
-    const terminal = vscode.window.createTerminal({ name: "API Fuzzer Terminal", shellPath: "wsl" });
+function generateRandomFileName(): string {
+    const timestamp = Date.now();
+    const randomNum = Math.floor(Math.random() * 1000);
+    return `generated_openapi_${timestamp}_${randomNum}`;
+}
+
+function generateReporterRandomFileName(): string {
+    const timestamp = Date.now();
+    const randomNum = Math.floor(Math.random() * 1000);
+    return `generated_reporter_${timestamp}_${randomNum}`;
+}
+
+async function runApiFuzzer(specPath: string, data: { targetUrl: string, options: { logLevel: string, testLevel: string, headers: any[] } }) {
+    const terminal = vscode.window.createTerminal({ name: "wsl", shellPath: "wsl" });
     terminal.show();
 
-    //리눅스 형식 경로
     const wslSpecPath = specPath.replace(/\\/g, '/').replace(/^([a-zA-Z]):/, '/mnt/$1').toLowerCase();
 
     const headersOption = data.options.headers.length > 0 ? `--headers '${JSON.stringify(data.options.headers)}'` : '';
-    const command = `APIFuzzer -s ${wslSpecPath} -u ${data.targetUrl} -r /mnt/c/tmp/openapi/ --log ${data.options.logLevel} --level ${data.options.testLevel} ${headersOption}`;
+    const reportFileName = generateReporterRandomFileName() + '.json';
+    const wslReportPath = `/mnt/c/mnt/c/tmp/openapi/${reportFileName}`; // Ensure the path is correct
+    const command = `APIFuzzer -s ${wslSpecPath} -u ${data.targetUrl} -r ${wslReportPath} --log ${data.options.logLevel} --level ${data.options.testLevel} ${headersOption}`;
     
     terminal.sendText(command);
+
+    setTimeout(async () => {
+        // const reportPath = path.join('/mnt/c/mnt/c/tmp/openapi', reportFileName); 
+        if (!fs.existsSync(wslReportPath)) {
+            terminal.sendText(`${command} > ${wslReportPath}`);
+            await new Promise(resolve => setTimeout(resolve, 10000)); 
+            vscode.window.showErrorMessage('리포트 파일이 생성되지 않았습니다. 오류 로그를 확인하세요.');
+            return;
+        }
+
+        vscode.window.showInformationMessage(`리포트 파일이 생성되었습니다: ${wslReportPath}`);
+    }, 10000); 
 }
 
 export function activate(context: vscode.ExtensionContext) {
     const disposable = vscode.commands.registerCommand('neon.runFuzzer', () => createWebviewPanel(context));
-    context.subscriptions.push(disposable); //ctrl + shift + p -> runFuzzer 실행
+    context.subscriptions.push(disposable);
 }
 
 export function deactivate() {}
